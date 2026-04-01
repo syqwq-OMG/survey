@@ -1,0 +1,19 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from app.database import connect_to_mongo, close_mongo_connection
+from app.routers import auth  # 导入 auth 路由
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await connect_to_mongo()
+    yield
+    await close_mongo_connection()
+
+app = FastAPI(title="问卷系统后端", lifespan=lifespan)
+
+# 注册路由
+app.include_router(auth.router)
+
+@app.get("/")
+async def root():
+    return {"message": "问卷系统 API 已启动并成功连接至 MongoDB！"}
