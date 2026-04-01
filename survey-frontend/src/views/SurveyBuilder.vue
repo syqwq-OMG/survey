@@ -61,7 +61,66 @@
             </el-form-item>
           </template>
 
-        </el-form>
+          <el-divider border-style="dotted" />
+          <el-form-item label="跳转逻辑" style="margin-bottom: 0;">
+            <div 
+              v-for="(logic, lIndex) in q.jump_logic" 
+              :key="lIndex" 
+              style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;"
+            >
+              <span style="font-size: 13px; color: #606266;">如果本题等于</span>
+              
+              <el-select 
+                v-if="q.type === 'single' || q.type === 'multiple'" 
+                v-model="logic.condition_value" 
+                placeholder="请选择触发选项" 
+                size="small" 
+                style="width: 160px;"
+              >
+                <el-option v-for="opt in q.options" :key="opt" :label="opt" :value="opt" />
+              </el-select>
+              
+              <el-input-number 
+                v-else-if="q.type === 'number'" 
+                v-model="logic.condition_value" 
+                size="small" 
+                style="width: 160px;" 
+                placeholder="触发数字"
+              />
+              
+              <el-input 
+                v-else 
+                v-model="logic.condition_value" 
+                placeholder="触发文本" 
+                size="small" 
+                style="width: 160px;" 
+              />
+
+              <span style="font-size: 13px; color: #606266;">则跳转到</span>
+              
+              <el-select 
+                v-model="logic.target_q_id" 
+                placeholder="选择目标题目" 
+                size="small" 
+                style="width: 200px;"
+              >
+                <template v-for="(targetQ, tIndex) in survey.questions" :key="targetQ.q_id">
+                  <el-option 
+                    v-if="targetQ.q_id !== q.q_id" 
+                    :label="`Q${tIndex + 1}. ` + (targetQ.title || '未命名题目')" 
+                    :value="targetQ.q_id" 
+                  />
+                </template>
+              </el-select>
+              
+              <el-button type="danger" link @click="removeJumpLogic(q, lIndex)">删除</el-button>
+            </div>
+            
+            <div style="width: 100%;">
+              <el-button type="primary" link @click="addJumpLogic(q)">+ 添加跳转规则</el-button>
+            </div>
+          </el-form-item>
+          </el-form>
       </div>
 
       <div class="add-toolbar">
@@ -110,7 +169,7 @@ const addQuestion = (type) => {
     type: type,
     title: '',
     is_required: true,
-    jump_logic: [] // 为后续预留
+    jump_logic: [] // 初始化跳转逻辑数组
   }
 
   // 根据题型附带不同的默认结构
@@ -139,6 +198,21 @@ const addOption = (q) => {
 
 const removeOption = (q, oIndex) => {
   q.options.splice(oIndex, 1)
+}
+
+// 跳转规则的增删逻辑
+const addJumpLogic = (q) => {
+  if (!q.jump_logic) {
+    q.jump_logic = []
+  }
+  q.jump_logic.push({ 
+    condition_value: null, 
+    target_q_id: '' 
+  })
+}
+
+const removeJumpLogic = (q, lIndex) => {
+  q.jump_logic.splice(lIndex, 1)
 }
 
 // 提交整个数据树给后端
@@ -202,7 +276,9 @@ const submitSurvey = async () => {
   color: #409EFF;
 }
 .option-item {
-  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
 }
 .add-toolbar {
   text-align: center;
