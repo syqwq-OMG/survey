@@ -1,10 +1,8 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+# Backend
+survey_backend/.venv/
+survey_backend/__pycache__/
+survey_backend/.env
 
-# Virtual environments
-.venv
+# Frontend
+survey-frontend/node_modules/
+survey-frontend/dist/
