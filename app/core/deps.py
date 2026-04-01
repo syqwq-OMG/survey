@@ -1,3 +1,4 @@
+# app/core/deps.py
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 import jwt
@@ -7,6 +8,9 @@ from app.database import db_instance
 
 # 指定前端传 Token 的方式 (Header: Authorization: Bearer <token>)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+# 新增的弱校验（未登录返回 None，不报错）
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -30,3 +34,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
         
     return user
+
+async def get_optional_current_user(token: str = Depends(oauth2_scheme_optional)):
+    """用于允许匿名访问的接口，如果有 token 则解析，没有则返回 None"""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if not user_id:
+            return None
+        db = db_instance.db
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        return user
+    except Exception:
+        return None
