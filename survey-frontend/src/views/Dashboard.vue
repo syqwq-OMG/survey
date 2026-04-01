@@ -52,9 +52,7 @@
                 填写链接
               </el-button>
               
-              <el-button size="small" type="info" plain @click="ElMessage.info('统计图表看板即将上线！')">
-                查看统计
-              </el-button>
+              <el-button size="small" type="info" plain @click="router.push(`/stats/${scope.row.id}`)">查看统计</el-button>
             </template>
           </el-table-column>
         </el-table>

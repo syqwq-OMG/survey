@@ -29,6 +29,12 @@ const routes = [
         component: () => import('../views/SurveyBuilder.vue'),
         meta: { requiresAuth: true }
     },
+    {
+        path: '/stats/:id',
+        name: 'SurveyStats',
+        component: () => import('../views/SurveyStats.vue'),
+        meta: { requiresAuth: true } // 只有登录用户（创建者）能看
+    },
 ]
 
 const router = createRouter({
