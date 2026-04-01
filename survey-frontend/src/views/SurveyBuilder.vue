@@ -60,6 +60,12 @@
               <el-checkbox v-model="q.constraints.is_integer">必须为整数</el-checkbox>
             </el-form-item>
           </template>
+          <template v-if="q.type === 'text'">
+            <el-form-item label="字数限制">
+              最少 <el-input-number v-model="q.constraints.min_length" :min="0" style="width: 100px; margin: 0 10px;" /> 字，
+              最多 <el-input-number v-model="q.constraints.max_length" :min="1" style="width: 100px; margin: 0 10px;" /> 字
+            </el-form-item>
+          </template>
 
           <el-divider border-style="dotted" />
           <el-form-item label="跳转逻辑" style="margin-bottom: 0;">
@@ -181,6 +187,9 @@ const addQuestion = (type) => {
     baseQ.constraints = { min_select: 1, max_select: 2 }
   } else if (type === 'number') {
     baseQ.constraints = { min_value: 0, max_value: 100, is_integer: false }
+  }else if (type === 'text') {
+    // 新增：文本题的默认字数限制
+    baseQ.constraints = { min_length: 0, max_length: 500 }
   } else {
     baseQ.constraints = {}
   }

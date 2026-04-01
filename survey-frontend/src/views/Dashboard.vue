@@ -42,7 +42,15 @@
                 @click="togglePublish(scope.row)">
                 {{ scope.row.is_active ? '关闭问卷' : '发布问卷' }}
               </el-button>
-              
+
+              <el-button 
+                size="small" 
+                type="primary" 
+                plain
+                @click="openDeadlineDialog(scope.row)">
+                设置截止时间
+              </el-button>
+
               <el-button 
                 size="small" 
                 type="primary" 
@@ -57,6 +65,22 @@
           </el-table-column>
         </el-table>
       </el-card>
+
+        <el-dialog v-model="deadlineDialogVisible" title="设置问卷截止时间" width="400px">
+            <el-date-picker
+                v-model="selectedDeadline"
+                type="datetime"
+                placeholder="选择截止日期和时间"
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DDTHH:mm:ssZ"
+                style="width: 100%;"
+            />
+            <template #footer>
+                <el-button @click="deadlineDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="saveDeadline">确定</el-button>
+            </template>
+        </el-dialog>
+
     </div>
   </div>
 </template>
@@ -71,6 +95,30 @@ const router = useRouter()
 const username = ref(localStorage.getItem('username') || '用户')
 const surveys = ref([])
 const loading = ref(false)
+
+const deadlineDialogVisible = ref(false)
+const selectedDeadline = ref('')
+const currentOperatingSurveyId = ref(null)
+
+// 弹窗控制逻辑
+const openDeadlineDialog = (row) => {
+  currentOperatingSurveyId.value = row.id
+  selectedDeadline.value = row.deadline || ''
+  deadlineDialogVisible.value = true
+}
+
+const saveDeadline = async () => {
+  try {
+    await request.put(`/api/surveys/${currentOperatingSurveyId.value}/status`, {
+      deadline: selectedDeadline.value || null
+    })
+    ElMessage.success('截止时间设置成功！')
+    deadlineDialogVisible.value = false
+    fetchSurveys()
+  } catch(e) {
+    ElMessage.error('设置失败')
+  }
+}
 
 // 页面加载时（onMounted）自动获取问卷列表
 onMounted(() => {

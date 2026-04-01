@@ -26,17 +26,31 @@ async def submit_response(
         
     if not survey.get("is_active", False):
         raise HTTPException(status_code=403, detail="该问卷尚未发布或已关闭")
+    
+    # ===== 新增：检查是否超过截止时间 =====
+    deadline = survey.get("deadline")
+    if deadline:
+        # 确保时间都在 UTC 时区下比较
+        if datetime.now(timezone.utc) > deadline.replace(tzinfo=timezone.utc):
+            raise HTTPException(status_code=403, detail="该问卷已超过截止时间，停止收集")
         
     # 2. 匿名权限检查
     if not survey.get("is_anonymous", False) and current_user is None:
         raise HTTPException(status_code=401, detail="该问卷不允许匿名填写，请先登录")
 
     # 3. 核心校验逻辑准备
-    questions_map = {q["q_id"]: q for q in survey.get("questions", [])}
+    questions = survey.get("questions", [])
     submitted_answers_map = {ans.q_id: ans.value for ans in response_data.answers}
+    
+    # 用于记录被跳转逻辑跳过的题目 ID
+    hidden_q_ids = set()
 
     # 4. 逐题校验
-    for q_id, q_def in questions_map.items():
+    for i, q_def in enumerate(questions):
+        q_id = q_def["q_id"]
+        # ===== 核心修复：如果这道题被前面的逻辑跳过了，直接放行，不进行任何校验 =====
+        if q_id in hidden_q_ids:
+            continue
         q_type = q_def.get("type")
         is_required = q_def.get("is_required", False)
         constraints = q_def.get("constraints", {})
@@ -48,7 +62,7 @@ async def submit_response(
             # 为简化第一阶段，我们严格要求必答题必须有值。
             raise HTTPException(status_code=400, detail=f"题目 '{q_def['title']}' 是必填项")
 
-        if value is None:
+        if value is None or value == "":
             continue # 非必填且没填，直接跳过后续校验
 
         # 4.2 单选题校验
@@ -95,13 +109,45 @@ async def submit_response(
                 raise HTTPException(status_code=400, detail=f"题目 '{q_def['title']}' 的值不能小于 {constraints['min_value']}")
             if "max_value" in constraints and num_value > constraints["max_value"]:
                 raise HTTPException(status_code=400, detail=f"题目 '{q_def['title']}' 的值不能大于 {constraints['max_value']}")
+            
+        # ===== 新增：校验通过后，计算当前题的跳转逻辑，将被跳过的题目加入 hidden_q_ids =====
+        jump_logic = q_def.get("jump_logic", [])
+        target_id = None
+        for logic in jump_logic:
+            cond_val = logic.get("condition_value")
+            t_id = logic.get("target_q_id")
+            
+            if q_type == "single" and value == cond_val:
+                target_id = t_id; break
+            elif q_type == "multiple" and isinstance(value, list) and cond_val in value:
+                target_id = t_id; break
+            elif q_type == "number":
+                try:
+                    if float(value) == float(cond_val):
+                        target_id = t_id; break
+                except (ValueError, TypeError):
+                    pass
 
-    # 5. 校验全部通过，保存答卷 [cite: 263]
+        # 如果命中了跳转目标，找到目标题目的索引，把中间的题全部标记为“跳过”
+        if target_id:
+            target_idx = -1
+            for j in range(i + 1, len(questions)):
+                if questions[j]["q_id"] == target_id:
+                    target_idx = j
+                    break
+            if target_idx != -1:
+                for j in range(i + 1, target_idx):
+                    hidden_q_ids.add(questions[j]["q_id"])
+
+
+    # 5. 校验全部通过，过滤掉被跳过的答案，保存有效答卷
+    valid_answers = [ans.model_dump() for ans in response_data.answers if ans.q_id not in hidden_q_ids]
+    
     response_doc = {
         "survey_id": ObjectId(survey_id),
         "user_id": current_user["_id"] if current_user else None,
         "submitted_at": datetime.now(timezone.utc),
-        "answers": [ans.model_dump() for ans in response_data.answers]
+        "answers": valid_answers
     }
     
     result = await db.responses.insert_one(response_doc)
