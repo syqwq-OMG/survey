@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from app.models.user import UserCreate, Token, UserResponse
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.database import db_instance
@@ -32,15 +33,15 @@ async def register(user: UserCreate):
     )
 
 @router.post("/login", response_model=Token)
-async def login(user: UserCreate):
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     db = db_instance.db
-    # 查找用户
-    db_user = await db.users.find_one({"username": user.username})
+    # 注意：这里把 user.username 改成了 form_data.username
+    db_user = await db.users.find_one({"username": form_data.username})
     if not db_user:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
         
-    # 验证密码
-    if not verify_password(user.password, db_user["password_hash"]):
+    # 注意：这里把 user.password 改成了 form_data.password
+    if not verify_password(form_data.password, db_user["password_hash"]):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
         
     # 生成 Token
