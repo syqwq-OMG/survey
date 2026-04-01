@@ -34,3 +34,44 @@
 测试跑通后，请在 ai_log.md 中添加记录 3：问卷创建与管理模块开发，说明我们利用 Pydantic 的灵活性实现了对动态题型和复杂限制条件的支持 。
 
 测试完后告诉我，我们就可以向最复杂的答卷提交与后端硬核校验逻辑进发了！
+
+
+========================
+
+如果你现在直接点击 Authorize，很可能会遇到一个 422 Unprocessable Entity 的报错。这是我的疏忽！
+
+原因在这里：
+FastAPI 的这套 OAuth2 弹窗机制，默认发送请求的方式是 表单 (Form Data)。而我们在前面写的 login 接口中，使用的是 user: UserCreate，这会让 FastAPI 认为你要接收的是一个 JSON 格式的数据。两者对不上，就会报错。
+
+为了让这个漂亮的绿锁（Authorize）按钮完美工作，我们需要把登录接口改为接收表单数据。
+
+请打开 app/routers/auth.py，把 /login 接口替换成下面这样：
+
+```py
+# 顶部需要新导入 OAuth2PasswordRequestForm 和 Depends
+from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordRequestForm
+# ... 其他导入保持不变 ...
+
+@router.post("/login", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    db = db_instance.db
+    # 注意：这里把 user.username 改成了 form_data.username
+    db_user = await db.users.find_one({"username": form_data.username})
+    if not db_user:
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+        
+    # 注意：这里把 user.password 改成了 form_data.password
+    if not verify_password(form_data.password, db_user["password_hash"]):
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+        
+    # 生成 Token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(db_user["_id"])}, expires_delta=access_token_expires
+    )
+    
+    return Token(access_token=access_token, token_type="bearer")
+```
+
+survey_id: 69cd37ebc370b1b8e16ed4af
