@@ -75,3 +75,19 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 ```
 
 survey_id: 69cd37ebc370b1b8e16ed4af
+
+================
+
+代码保存后，FastAPI 重载完毕，你可以回到 Swagger UI：
+
+确保你现在是通过问卷创建者的账号登录的（右上角绿锁开启）。
+
+找到 GET /api/surveys/{survey_id}/stats 接口。
+
+填入你刚才的问卷 ID。
+
+点击 Execute。
+
+你将得到一个结构极其规整的 JSON，里面清晰地列出了有几个人提交了问卷，单选和多选各个选项分别被选了多少次，以及数字题自动计算出的平均值。
+
+至此，第一阶段的所有后端核心 API 已经全部开发完成。别忘了在 ai_log.md 中记录这一步骤，写明使用 Python 的聚合逻辑完成了单选、多选频次以及数字题平均值的计算 。
