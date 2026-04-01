@@ -1,157 +1,231 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>极简问卷管理系统</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
-        .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
-        button { padding: 5px 10px; cursor: pointer; margin-right: 5px; }
-        input[type="text"], input[type="password"] { padding: 5px; margin: 5px 0; }
-        textarea { width: 100%; height: 150px; font-family: monospace; }
-        pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
+      body {
+        font-family: sans-serif;
+        padding: 20px;
+        max-width: 800px;
+        margin: auto;
+      }
+      .card {
+        border: 1px solid #ccc;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+      }
+      button {
+        padding: 5px 10px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      input[type="text"],
+      input[type="password"] {
+        padding: 5px;
+        margin: 5px 0;
+      }
+      textarea {
+        width: 100%;
+        height: 150px;
+        font-family: monospace;
+      }
+      pre {
+        background: #f4f4f4;
+        padding: 10px;
+        overflow-x: auto;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>📋 极简问卷系统后台</h1>
 
     <div id="login-section" class="card">
-        <h3>用户登录</h3>
-        <input type="text" id="username" placeholder="用户名"><br>
-        <input type="password" id="password" placeholder="密码"><br>
-        <button onclick="login()">登录</button>
-        <p id="login-msg" style="color: red;"></p>
+      <h3>用户登录</h3>
+      <input type="text" id="username" placeholder="用户名" /><br />
+      <input type="password" id="password" placeholder="密码" /><br />
+      <button onclick="login()">登录</button>
+      <p id="login-msg" style="color: red"></p>
     </div>
 
-    <div id="dashboard-section" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3>欢迎回来！</h3>
-            <button onclick="logout()" style="background: #ff4d4d; color: white; border: none;">退出登录</button>
-        </div>
+    <div id="dashboard-section" style="display: none">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <h3>欢迎回来！</h3>
+        <button
+          onclick="logout()"
+          style="background: #ff4d4d; color: white; border: none"
+        >
+          退出登录
+        </button>
+      </div>
 
-        <div class="card" style="background-color: #f9f9f9;">
-            <h4>快速创建问卷 (粘贴 JSON)</h4>
-            <textarea id="survey-json-input" placeholder='{"title": "测试问卷", "is_anonymous": true, "questions": [...]}'></textarea><br>
-            <button onclick="createSurvey()">一键创建问卷</button>
-            <span id="create-msg"></span>
-        </div>
+      <div class="card" style="background-color: #f9f9f9">
+        <h4>快速创建问卷 (粘贴 JSON)</h4>
+        <textarea
+          id="survey-json-input"
+          placeholder='{"title": "测试问卷", "is_anonymous": true, "questions": [...]}'
+        ></textarea
+        ><br />
+        <button onclick="createSurvey()">一键创建问卷</button>
+        <span id="create-msg"></span>
+      </div>
 
-        <h3>我的问卷列表</h3>
-        <button onclick="fetchSurveys()">刷新列表</button>
-        <div id="survey-list" style="margin-top: 15px;"></div>
-        
-        <div id="stats-display" class="card" style="display: none; border-color: #007bff;">
-            <button onclick="document.getElementById('stats-display').style.display='none'" style="float: right;">关闭</button>
-            <h4 style="color: #007bff;">统计结果</h4>
-            <pre id="stats-content"></pre>
-        </div>
+      <h3>我的问卷列表</h3>
+      <button onclick="fetchSurveys()">刷新列表</button>
+      <div id="survey-list" style="margin-top: 15px"></div>
+
+      <div
+        id="stats-display"
+        class="card"
+        style="display: none; border-color: #007bff"
+      >
+        <button
+          onclick="
+            document.getElementById('stats-display').style.display = 'none'
+          "
+          style="float: right"
+        >
+          关闭
+        </button>
+        <h4 style="color: #007bff">统计结果</h4>
+        <pre id="stats-content"></pre>
+      </div>
     </div>
 
     <script>
-        // --- 1. 登录与退出 ---
-        async function login() {
-            const formData = new FormData();
-            formData.append("username", document.getElementById('username').value);
-            formData.append("password", document.getElementById('password').value);
+      // --- 1. 登录与退出 ---
+      async function login() {
+        const formData = new FormData();
+        formData.append("username", document.getElementById("username").value);
+        formData.append("password", document.getElementById("password").value);
 
-            const res = await fetch('/api/auth/login', { method: 'POST', body: formData });
-            if (res.ok) {
-                const data = await res.json();
-                localStorage.setItem('token', data.access_token);
-                toggleUI(true);
-            } else {
-                document.getElementById('login-msg').innerText = "登录失败，请检查账号密码";
-            }
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          body: formData,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem("token", data.access_token);
+          toggleUI(true);
+        } else {
+          document.getElementById("login-msg").innerText =
+            "登录失败，请检查账号密码";
         }
+      }
 
-        function logout() {
-            localStorage.removeItem('token');
-            toggleUI(false);
+      function logout() {
+        localStorage.removeItem("token");
+        toggleUI(false);
+      }
+
+      function toggleUI(isLoggedIn) {
+        document.getElementById("login-section").style.display = isLoggedIn
+          ? "none"
+          : "block";
+        document.getElementById("dashboard-section").style.display = isLoggedIn
+          ? "block"
+          : "none";
+        if (isLoggedIn) fetchSurveys();
+      }
+
+      // --- 2. 创建问卷 ---
+      async function createSurvey() {
+        const token = localStorage.getItem("token");
+        const jsonStr = document.getElementById("survey-json-input").value;
+        try {
+          const payload = JSON.parse(jsonStr);
+          const res = await fetch("/api/surveys", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            document.getElementById("create-msg").innerHTML =
+              "<span style='color:green'>创建成功！请在下方列表发布。</span>";
+            fetchSurveys();
+          } else {
+            const err = await res.json();
+            document.getElementById("create-msg").innerHTML =
+              `<span style='color:red'>错误: ${JSON.stringify(err.detail)}</span>`;
+          }
+        } catch (e) {
+          document.getElementById("create-msg").innerHTML =
+            "<span style='color:red'>JSON 格式错误，请检查！</span>";
         }
+      }
 
-        function toggleUI(isLoggedIn) {
-            document.getElementById('login-section').style.display = isLoggedIn ? 'none' : 'block';
-            document.getElementById('dashboard-section').style.display = isLoggedIn ? 'block' : 'none';
-            if (isLoggedIn) fetchSurveys();
-        }
+      // --- 3. 获取列表与统计 ---
+      async function fetchSurveys() {
+        const token = localStorage.getItem("token");
+        const res = await fetch("/api/surveys", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const surveys = await res.json();
 
-        // --- 2. 创建问卷 ---
-        async function createSurvey() {
-            const token = localStorage.getItem('token');
-            const jsonStr = document.getElementById('survey-json-input').value;
-            try {
-                const payload = JSON.parse(jsonStr);
-                const res = await fetch('/api/surveys', {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json' 
-                    },
-                    body: JSON.stringify(payload)
-                });
-                if (res.ok) {
-                    document.getElementById('create-msg').innerHTML = "<span style='color:green'>创建成功！请在下方列表发布。</span>";
-                    fetchSurveys();
-                } else {
-                    const err = await res.json();
-                    document.getElementById('create-msg').innerHTML = `<span style='color:red'>错误: ${JSON.stringify(err.detail)}</span>`;
-                }
-            } catch (e) {
-                document.getElementById('create-msg').innerHTML = "<span style='color:red'>JSON 格式错误，请检查！</span>";
-            }
-        }
+        const listDiv = document.getElementById("survey-list");
+        listDiv.innerHTML = "";
 
-        // --- 3. 获取列表与统计 ---
-        async function fetchSurveys() {
-            const token = localStorage.getItem('token');
-            const res = await fetch('/api/surveys', { headers: { 'Authorization': `Bearer ${token}` } });
-            const surveys = await res.json();
-            
-            const listDiv = document.getElementById('survey-list');
-            listDiv.innerHTML = '';
-            
-            surveys.forEach(s => {
-                const link = `/static/survey.html?id=${s.id}`;
-                listDiv.innerHTML += `
+        surveys.forEach((s) => {
+          const link = `/static/survey.html?id=${s.id}`;
+          listDiv.innerHTML += `
                     <div class="card">
                         <h4>${s.title} 
-                            <span style="color:${s.is_active ? 'green' : 'red'}; font-size:12px;">
-                                (${s.is_active ? '已发布' : '未发布'})
+                            <span style="color:${s.is_active ? "green" : "red"}; font-size:12px;">
+                                (${s.is_active ? "已发布" : "未发布"})
                             </span>
                         </h4>
                         <p style="font-size:12px; color:#666;">ID: ${s.id}</p>
-                        <button onclick="togglePublish('${s.id}', ${!s.is_active})">${s.is_active ? '关闭问卷' : '发布问卷'}</button>
+                        <button onclick="togglePublish('${s.id}', ${!s.is_active})">${s.is_active ? "关闭问卷" : "发布问卷"}</button>
                         <a href="${link}" target="_blank"><button>打开填写页</button></a>
                         <button onclick="viewStats('${s.id}')">查看统计</button>
                     </div>
                 `;
-            });
-        }
+        });
+      }
 
-        async function togglePublish(surveyId, setToActive) {
-            const token = localStorage.getItem('token');
-            await fetch(`/api/surveys/${surveyId}/status`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_active: setToActive })
-            });
-            fetchSurveys();
-        }
+      async function togglePublish(surveyId, setToActive) {
+        const token = localStorage.getItem("token");
+        await fetch(`/api/surveys/${surveyId}/status`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ is_active: setToActive }),
+        });
+        fetchSurveys();
+      }
 
-        async function viewStats(surveyId) {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`/api/surveys/${surveyId}/stats`, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('stats-content').innerText = JSON.stringify(data, null, 2);
-                document.getElementById('stats-display').style.display = 'block';
-            } else {
-                alert("获取统计失败");
-            }
+      async function viewStats(surveyId) {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`/api/surveys/${surveyId}/stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById("stats-content").innerText = JSON.stringify(
+            data,
+            null,
+            2,
+          );
+          document.getElementById("stats-display").style.display = "block";
+        } else {
+          alert("获取统计失败");
         }
+      }
 
-        // 初始化检查
-        if (localStorage.getItem('token')) toggleUI(true);
+      // 初始化检查
+      if (localStorage.getItem("token")) toggleUI(true);
     </script>
-</body>
+  </body>
 </html>
