@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>填写问卷</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        .question { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; transition: opacity 0.3s; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <h1 id="survey-title">加载中...</h1>
+    <p id="survey-desc"></p>
+    
+    <div id="questions-container"></div>
+    <button onclick="submitResponse()" style="margin-top:20px; padding:10px 20px;">提交答卷</button>
+    <p id="submit-msg"></p>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const surveyId = urlParams.get('id');
+        let questionsData = [];
+
+        async function loadSurvey() {
+            const res = await fetch(`/api/surveys/${surveyId}`);
+            if (!res.ok) {
+                document.getElementById('survey-title').innerText = "问卷不存在或加载失败";
+                return;
+            }
+            const survey = await res.json();
+            document.getElementById('survey-title').innerText = survey.title;
+            document.getElementById('survey-desc').innerText = survey.description || '';
+            questionsData = survey.questions;
+            
+            const container = document.getElementById('questions-container');
+            questionsData.forEach((q, index) => {
+                let html = `<div class="question" id="div-${q.q_id}" data-index="${index}">
+                              <p><strong>${q.title}</strong> ${q.is_required ? '<span style="color:red">*</span>' : ''}</p>`;
+                
+                // 绑定 onchange 事件触发评估逻辑
+                const onChangeStr = `onchange="evaluateJumpLogic()"`;
+
+                if (q.type === 'single') {
+                    q.options.forEach(opt => {
+                        html += `<label><input type="radio" name="${q.q_id}" value="${opt}" ${onChangeStr}> ${opt}</label><br>`;
+                    });
+                } else if (q.type === 'multiple') {
+                    q.options.forEach(opt => {
+                        html += `<label><input type="checkbox" name="${q.q_id}" value="${opt}" ${onChangeStr}> ${opt}</label><br>`;
+                    });
+                } else if (q.type === 'number') {
+                    html += `<input type="number" name="${q.q_id}" ${onChangeStr}>`;
+                } else if (q.type === 'text') {
+                    html += `<input type="text" name="${q.q_id}">`; // 文本通常不用于触发跳转
+                }
+                
+                html += `</div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        // --- 核心：基于图表连线的跳转逻辑计算 ---
+        function evaluateJumpLogic() {
+            // 首先重置所有题目的显示状态
+            document.querySelectorAll('.question').forEach(el => el.classList.remove('hidden'));
+
+            for (let i = 0; i < questionsData.length; i++) {
+                const q = questionsData[i];
+                if (!q.jump_logic || q.jump_logic.length === 0) continue;
+
+                // 获取当前题目的用户输入值
+                let currentValue = null;
+                if (q.type === 'single') {
+                    const checked = document.querySelector(`input[name="${q.q_id}"]:checked`);
+                    currentValue = checked ? checked.value : null;
+                } else if (q.type === 'multiple') {
+                    const checkedNodes = document.querySelectorAll(`input[name="${q.q_id}"]:checked`);
+                    currentValue = Array.from(checkedNodes).map(n => n.value);
+                } else if (q.type === 'number') {
+                    const val = document.querySelector(`input[name="${q.q_id}"]`).value;
+                    currentValue = val ? Number(val) : null;
+                }
+
+                // 检查是否命中某条跳转规则
+                let targetId = null;
+                for (const logic of q.jump_logic) {
+                    // 如果条件匹配 (单选/数字全等，多选包含)
+                    if (currentValue === logic.condition_value || 
+                       (Array.isArray(currentValue) && currentValue.includes(logic.condition_value))) {
+                        targetId = logic.target_q_id;
+                        break; // 命中了就不往下看了
+                    }
+                }
+
+                // 如果命中了跳转规则，隐藏当前题目与目标题目之间的所有中间题目
+                if (targetId) {
+                    const targetIndex = questionsData.findIndex(item => item.q_id === targetId);
+                    if (targetIndex > i) {
+                        for (let j = i + 1; j < targetIndex; j++) {
+                            const skippedQid = questionsData[j].q_id;
+                            const el = document.getElementById(`div-${skippedQid}`);
+                            if (el) el.classList.add('hidden');
+                        }
+                    }
+                }
+            }
+        }
+
+        // 提交逻辑保持不变，但增加一个过滤：被 hidden 的题目内容不提交
+        async function submitResponse() {
+            const answers = [];
+            questionsData.forEach(q => {
+                const el = document.getElementById(`div-${q.q_id}`);
+                // 如果题目因为跳转逻辑被隐藏了，就不收集它的答案
+                if (el.classList.contains('hidden')) return;
+
+                if (q.type === 'single') {
+                    const checked = document.querySelector(`input[name="${q.q_id}"]:checked`);
+                    if (checked) answers.push({ q_id: q.q_id, value: checked.value });
+                } else if (q.type === 'multiple') {
+                    const checkedNodes = document.querySelectorAll(`input[name="${q.q_id}"]:checked`);
+                    const values = Array.from(checkedNodes).map(n => n.value);
+                    if (values.length > 0) answers.push({ q_id: q.q_id, value: values });
+                } else if (q.type === 'number') {
+                    const val = document.querySelector(`input[name="${q.q_id}"]`).value;
+                    if (val !== "") answers.push({ q_id: q.q_id, value: Number(val) });
+                } else if (q.type === 'text') {
+                    const val = document.querySelector(`input[name="${q.q_id}"]`).value;
+                    if (val !== "") answers.push({ q_id: q.q_id, value: val });
+                }
+            });
+
+            const payload = { answers: answers };
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const res = await fetch(`/api/surveys/${surveyId}/responses`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                document.getElementById('submit-msg').innerHTML = "<span style='color:green'>提交成功！感谢参与。</span>";
+                document.getElementById('questions-container').style.display = 'none';
+            } else {
+                const err = await res.json();
+                document.getElementById('submit-msg').innerHTML = `<span style='color:red'>提交失败: ${JSON.stringify(err.detail)}</span>`;
+            }
+        }
+
+        loadSurvey();
+    </script>
+</body>
+</html>
