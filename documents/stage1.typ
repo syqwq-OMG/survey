@@ -601,4 +601,5 @@ elif q_type == "number":
     + 启动后端： `cd survey-backend && uv run uvicorn main:app --reload`
 
   - 同步后端 Python 依赖： `uv sync`
+  - 完整代码及相关文件见 Github repo: #link("https://github.com/syqwq-OMG/survey")[https://github.com/syqwq-OMG/survey]
 ]

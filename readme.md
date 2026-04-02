@@ -7,6 +7,7 @@
 .
 ├── documents       # 文档说明
 ├── readme.md
+├── test            # 测试代码
 ├── survey-frontend # 前端代码
 └── survey_backend  # 后端代码
 ```
