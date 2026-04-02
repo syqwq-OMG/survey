@@ -7,6 +7,16 @@
           <p class="description">{{ survey.description }}</p>
         </div>
 
+        <div v-if="survey.deadline" style="margin-bottom: 20px;">
+          <el-alert 
+            :title="isExpired ? '该问卷已超过截止时间，停止收集' : '问卷截止时间：' + new Date(survey.deadline).toLocaleString()" 
+            :type="isExpired ? 'error' : 'warning'" 
+            :closable="false" 
+            show-icon 
+            center
+          />
+        </div>
+
         <el-divider />
 
         <el-form :model="formData" label-position="top" size="large">
@@ -69,7 +79,7 @@
               type="primary"
               size="large"
               @click="submitResponse"
-              :loading="submitting"
+              :loading="submitting":disabled="isExpired"
             >
               提交答卷
             </el-button>
@@ -83,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, computed} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import request from "../utils/request";
@@ -147,10 +157,16 @@ const evaluateJumpLogic = () => {
         break;
       } else if (
         q.type === "multiple" &&
-        currentValue.includes(logic.condition_value)
+        Array.isArray(logic.condition_value)
       ) {
-        targetId = logic.target_q_id;
-        break;
+        // 多选题逻辑：用户选择的选项必须包含设定的所有触发选项 (子集匹配)
+        const isMatch =
+          logic.condition_value.length > 0 &&
+          logic.condition_value.every((v) => currentValue.includes(v));
+        if (isMatch) {
+          targetId = logic.target_q_id;
+          break;
+        }
       } else if (
         q.type === "number" &&
         currentValue === Number(logic.condition_value)
@@ -172,6 +188,12 @@ const evaluateJumpLogic = () => {
   }
   hiddenQuestions.value = newHidden;
 };
+
+// 计算属性：判断是否已过期
+const isExpired = computed(() => {
+  if (!survey.value || !survey.value.deadline) return false
+  return new Date(survey.value.deadline) < new Date()
+})
 
 const submitResponse = async () => {
   // 1. 构造后端需要的 payload 格式

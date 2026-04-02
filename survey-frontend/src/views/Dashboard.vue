@@ -41,6 +41,17 @@
               {{ new Date(scope.row.created_at).toLocaleString() }}
             </template>
           </el-table-column>
+          <el-table-column label="截止时间" min-width="160">
+            <template #default="scope">
+              <template v-if="scope.row.deadline">
+                <span :style="{ color: new Date(scope.row.deadline) < new Date() ? '#F56C6C' : '#606266' }">
+                  {{ new Date(scope.row.deadline).toLocaleString() }}
+                  <span v-if="new Date(scope.row.deadline) < new Date()" style="font-size: 12px;">(已过期)</span>
+                </span>
+              </template>
+              <span v-else style="color: #909399;">永久有效</span>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" min-width="400" fixed="right">
             <template #default="scope">
               <div class="action-buttons">

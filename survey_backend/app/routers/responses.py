@@ -147,23 +147,23 @@ async def submit_response(
                 )
 
         # ===== 新增：校验通过后，计算当前题的跳转逻辑，将被跳过的题目加入 hidden_q_ids =====
+        # ===== 计算当前题的跳转逻辑 =====
         jump_logic = q_def.get("jump_logic", [])
         target_id = None
         for logic in jump_logic:
             cond_val = logic.get("condition_value")
             t_id = logic.get("target_q_id")
-
+            
             if q_type == "single" and value == cond_val:
-                target_id = t_id
-                break
-            elif q_type == "multiple" and isinstance(value, list) and cond_val in value:
-                target_id = t_id
-                break
+                target_id = t_id; break
+            elif q_type == "multiple" and isinstance(value, list) and isinstance(cond_val, list):
+                # 后端多选跳转逻辑：cond_val 不为空，且是 value 的子集
+                if len(cond_val) > 0 and set(cond_val).issubset(set(value)):
+                    target_id = t_id; break
             elif q_type == "number":
                 try:
                     if float(value) == float(cond_val):
-                        target_id = t_id
-                        break
+                        target_id = t_id; break
                 except (ValueError, TypeError):
                     pass
 

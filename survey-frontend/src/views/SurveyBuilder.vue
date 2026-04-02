@@ -31,12 +31,15 @@
             placeholder="请输入感谢语或填写说明"
           />
         </el-form-item>
-        <el-form-item label="匿名填写">
-          <el-switch
-            v-model="survey.is_anonymous"
-            active-text="允许"
-            inactive-text="必须登录"
-          />
+        <el-form-item label="填写权限">
+          <el-radio-group v-model="survey.is_anonymous">
+            <el-radio :value="true" border>
+              公开匿名 <span style="font-size: 12px; color: #909399;">(任何人可通过链接直接填写)</span>
+            </el-radio>
+            <el-radio :value="false" border>
+              登录限制 <span style="font-size: 12px; color: #909399;">(必须登录系统才能填写)</span>
+            </el-radio>
+          </el-radio-group>
         </el-form-item>
       </el-form>
 
@@ -159,7 +162,7 @@
               <span style="font-size: 13px; color: #606266">如果本题等于</span>
 
               <el-select
-                v-if="q.type === 'single' || q.type === 'multiple'"
+                v-if="q.type === 'single'"
                 v-model="logic.condition_value"
                 placeholder="请选择触发选项"
                 size="small"
@@ -171,6 +174,18 @@
                   :label="opt"
                   :value="opt"
                 />
+              </el-select>
+
+              <el-select 
+                v-else-if="q.type === 'multiple'" 
+                v-model="logic.condition_value" 
+                multiple
+                collapse-tags
+                placeholder="选择触发选项组合" 
+                size="small" 
+                style="width: 180px;"
+              >
+                <el-option v-for="opt in q.options" :key="opt" :label="opt" :value="opt" />
               </el-select>
 
               <el-input-number
@@ -315,13 +330,14 @@ const removeOption = (q, oIndex) => {
 // 跳转规则的增删逻辑
 const addJumpLogic = (q) => {
   if (!q.jump_logic) {
-    q.jump_logic = [];
+    q.jump_logic = []
   }
-  q.jump_logic.push({
-    condition_value: null,
-    target_q_id: "",
-  });
-};
+  q.jump_logic.push({ 
+    // 如果是多选题，触发条件默认必须是数组
+    condition_value: q.type === 'multiple' ? [] : null, 
+    target_q_id: '' 
+  })
+}
 
 const removeJumpLogic = (q, lIndex) => {
   q.jump_logic.splice(lIndex, 1);
