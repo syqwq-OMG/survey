@@ -4,10 +4,10 @@ from app.models.stat import SurveyStatOut, QuestionStat
 from app.core.deps import get_current_user
 from app.database import db_instance
 
-router = APIRouter(prefix="/api/surveys", tags=["Statistics"])
+router = APIRouter(prefix="/api", tags=["Statistics"])
 
 
-@router.get("/{survey_id}/stats", response_model=SurveyStatOut)
+@router.get("/surveys/{survey_id}/stats", response_model=SurveyStatOut)
 async def get_survey_stats(
     survey_id: str, current_user: dict = Depends(get_current_user)  # 强制要求登录
 ):
@@ -105,3 +105,55 @@ async def get_survey_stats(
         total_submissions=len(responses),
         questions=result_questions,
     )
+
+@router.get("/stats/question/{original_q_id}")
+async def get_global_question_stats(original_q_id: str, current_user: dict = Depends(get_current_user)):
+    db = db_instance.db
+    
+    q_info = await db.question_bank.find_one({"original_q_id": original_q_id})
+    if not q_info:
+        raise HTTPException(status_code=404, detail="Question not found")
+        
+    pipeline = [
+        {"$unwind": "$answers"},
+        {"$match": {"answers.question_bank_original_id": original_q_id}},
+    ]
+    cursor = db.responses.aggregate(pipeline)
+    responses_subset = await cursor.to_list(length=5000)
+    
+    total_resp = len(responses_subset)
+    stat = {
+        "original_q_id": original_q_id,
+        "title": q_info["title"],
+        "type": q_info["type"],
+        "total_responses": total_resp,
+    }
+    
+    if q_info["type"] in ["single", "multiple"]:
+        counts = {}
+        for r in responses_subset:
+            val = r["answers"].get("value")
+            if isinstance(val, list):
+                for v in val:
+                    str_v = str(v)
+                    counts[str_v] = counts.get(str_v, 0) + 1
+            elif val is not None:
+                str_v = str(val)
+                counts[str_v] = counts.get(str_v, 0) + 1
+        stat["options_count"] = counts
+
+    elif q_info["type"] == "text":
+        stat["text_answers"] = [str(r["answers"].get("value")) for r in responses_subset if r["answers"].get("value")]
+
+    elif q_info["type"] == "number":
+        sum_val = 0.0
+        for r in responses_subset:
+            val = r["answers"].get("value")
+            if val is not None:
+                try:
+                    sum_val += float(val)
+                except ValueError:
+                    pass
+        stat["average"] = sum_val / total_resp if total_resp > 0 else 0
+
+    return stat

@@ -35,6 +35,18 @@ const routes = [
         component: () => import('../views/SurveyStats.vue'),
         meta: { requiresAuth: true } // 只有登录用户（创建者）能看
     },
+    {
+        path: '/question-bank',
+        name: 'QuestionBank',
+        component: () => import('../views/QuestionBank.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/stats/question/:id',
+        name: 'QuestionGlobalStats',
+        component: () => import('../views/QuestionGlobalStats.vue'),
+        meta: { requiresAuth: true }
+    },
 ]
 
 const router = createRouter({

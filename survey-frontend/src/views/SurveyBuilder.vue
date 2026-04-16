@@ -253,7 +253,29 @@
         <el-button type="warning" plain @click="addQuestion('number')"
           >+ 数字填空</el-button
         >
+        <el-button type="primary" style="margin-left: 20px" @click="openBankDialog">
+          从题库导入
+        </el-button>
       </div>
+
+      <!-- 从题库导入弹窗 -->
+      <el-dialog v-model="bankDialogVisible" title="从题库导入题目" width="700px">
+        <el-tabs v-model="bankActiveTab" @tab-change="loadBankQuestions">
+          <el-tab-pane label="我的题库" name="my"></el-tab-pane>
+          <el-tab-pane label="共享大厅" name="shared"></el-tab-pane>
+        </el-tabs>
+        <el-table :data="bankQuestions" v-loading="bankLoading" height="400">
+          <el-table-column prop="title" label="题目内容" />
+          <el-table-column prop="type" label="题型" width="100">
+             <template #default="{ row }">{{ getTypeName(row.type) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="100">
+            <template #default="{ row }">
+              <el-button type="primary" size="small" @click="importQuestion(row)">导入</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-dialog>
     </el-card>
   </div>
 </template>
@@ -267,7 +289,47 @@ import request from "../utils/request";
 const router = useRouter();
 const loading = ref(false);
 
-// 响应式的问卷数据树，完美替代手写 JSON
+const bankDialogVisible = ref(false);
+const bankActiveTab = ref('my');
+const bankQuestions = ref([]);
+const bankLoading = ref(false);
+
+const loadBankQuestions = async () => {
+  bankLoading.value = true;
+  try {
+    const res = await request.get('/api/questions', { 
+      params: { is_shared: bankActiveTab.value === 'shared' }
+    });
+    bankQuestions.value = res.data;
+  } catch(e) {
+    ElMessage.error("获取题库失败");
+  } finally {
+    bankLoading.value = false;
+  }
+};
+
+const openBankDialog = () => {
+  bankDialogVisible.value = true;
+  loadBankQuestions();
+};
+
+const importQuestion = (q) => {
+  const newQ = {
+    q_id: generateId(),
+    question_bank_id: q.id,
+    type: q.type,
+    title: q.title,
+    is_required: q.is_required,
+    options: q.options ? [...q.options] : [],
+    constraints: q.constraints ? {...q.constraints} : {},
+    jump_logic: []
+  };
+  survey.questions.push(newQ);
+  bankDialogVisible.value = false;
+  ElMessage.success("导入成功，注意：如果修改将作为新题目版本！");
+};
+
+// 响应式的问卷数据树
 const survey = reactive({
   title: "",
   description: "",

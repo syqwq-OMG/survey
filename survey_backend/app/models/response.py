@@ -6,6 +6,7 @@ from datetime import datetime
 
 class AnswerItem(BaseModel):
     q_id: str = Field(..., description="题目ID")
+    question_bank_original_id: str = Field(..., description="对应的题库原始ID, 用于跨问卷统计")
     value: Any = Field(..., description="用户填写的答案(字符串/数字/列表)")
 
 

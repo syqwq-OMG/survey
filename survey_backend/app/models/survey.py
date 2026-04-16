@@ -12,6 +12,7 @@ class JumpLogic(BaseModel):
 # 统一的题目模型
 class Question(BaseModel):
     q_id: str = Field(..., description="题目在问卷中的内部唯一ID，例如 'q1'")
+    question_bank_id: Optional[str] = Field(None, description="引用的题库题目具体版本ID(如果为空，则表示是全新题目，后端会自动建库)")
     type: str = Field(..., description="题型：single, multiple, text, number")
     title: str = Field(..., description="题目内容")
     is_required: bool = Field(False, description="是否必填")

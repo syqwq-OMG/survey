@@ -25,6 +25,27 @@ async def create_survey(
     db = db_instance.db
     survey_dict = survey.model_dump()
 
+    # 处理题目，如果题库ID不存在，则自动建库
+    for q in survey_dict["questions"]:
+        if not q.get("question_bank_id"):
+            # 创建新题库题目
+            new_original_id = str(ObjectId())
+            qb_doc = {
+                "original_q_id": new_original_id,
+                "version": 1,
+                "creator_id": current_user["_id"],
+                "is_shared": False,
+                "parent_version_id": None,
+                "created_at": datetime.now(timezone.utc),
+                "type": q["type"],
+                "title": q["title"],
+                "is_required": q["is_required"],
+                "options": q.get("options"),
+                "constraints": q.get("constraints", {})
+            }
+            res = await db.question_bank.insert_one(qb_doc)
+            q["question_bank_id"] = str(res.inserted_id)
+
     # 补充后端自动生成的信息
     survey_dict["creator_id"] = current_user["_id"]
     survey_dict["created_at"] = datetime.now(timezone.utc)
