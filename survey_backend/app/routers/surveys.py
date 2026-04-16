@@ -34,7 +34,7 @@ async def create_survey(
                 "original_q_id": new_original_id,
                 "version": 1,
                 "creator_id": current_user["_id"],
-                "is_shared": False,
+                "is_shared": q.get("is_shared", False),
                 "parent_version_id": None,
                 "created_at": datetime.now(timezone.utc),
                 "type": q["type"],

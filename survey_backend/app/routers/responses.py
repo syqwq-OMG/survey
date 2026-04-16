@@ -45,6 +45,16 @@ async def submit_response(
     questions = survey.get("questions", [])
     submitted_answers_map = {ans.q_id: ans.value for ans in response_data.answers}
 
+    # 获取题库的 original_id 映射
+    qb_ids = [ObjectId(q["question_bank_id"]) for q in questions if q.get("question_bank_id") and ObjectId.is_valid(q["question_bank_id"])]
+    qb_map = {}
+    if qb_ids:
+        cursor = db.question_bank.find({"_id": {"$in": qb_ids}})
+        # max pool length of 500 questions per survey
+        qb_docs = await cursor.to_list(length=500)
+        for doc in qb_docs:
+            qb_map[str(doc["_id"])] = doc.get("original_q_id")
+
     # 用于记录被跳转逻辑跳过的题目 ID
     hidden_q_ids = set()
 
@@ -186,11 +196,15 @@ async def submit_response(
                     hidden_q_ids.add(questions[j]["q_id"])
 
     # 5. 校验全部通过，过滤掉被跳过的答案，保存有效答卷
-    valid_answers = [
-        ans.model_dump()
-        for ans in response_data.answers
-        if ans.q_id not in hidden_q_ids
-    ]
+    valid_answers = []
+    for ans in response_data.answers:
+        if ans.q_id not in hidden_q_ids:
+            ans_dict = ans.model_dump()
+            q_def = next((q for q in questions if q["q_id"] == ans.q_id), None)
+            if q_def and q_def.get("question_bank_id"):
+                qb_id_str = q_def["question_bank_id"]
+                ans_dict["question_bank_original_id"] = qb_map.get(qb_id_str)
+            valid_answers.append(ans_dict)
 
     response_doc = {
         "survey_id": ObjectId(survey_id),

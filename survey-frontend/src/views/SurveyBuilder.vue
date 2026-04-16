@@ -51,25 +51,51 @@
         class="question-block"
       >
         <div class="q-header">
-          <span class="q-title"
-            >Q{{ index + 1 }}. {{ getTypeName(q.type) }}</span
-          >
-          <el-button
-            type="danger"
-            icon="Delete"
-            circle
-            size="small"
-            @click="removeQuestion(index)"
-          />
+          <span class="q-title" style="display:flex; align-items:center;">
+            Q{{ index + 1 }}. {{ getTypeName(q.type) }}
+            <el-tag v-if="q.question_bank_id" type="warning" size="small" style="margin-left:8px;">
+              已链接题库
+            </el-tag>
+          </span>
+          <div>
+            <el-button
+              v-if="q.question_bank_id"
+              type="primary"
+              size="small"
+              plain
+              @click="saveAsNewVersion(q)"
+            >保存为库中新版本</el-button>
+            <el-button
+              v-if="q.question_bank_id"
+              type="info"
+              size="small"
+              plain
+              @click="unbindQuestion(q)"
+            >解绑并作为独立新题</el-button>
+            
+            <el-button
+              type="danger"
+              icon="Delete"
+              circle
+              size="small"
+              style="margin-left: 10px;"
+              @click="removeQuestion(index)"
+            />
+          </div>
         </div>
 
-        <el-form label-width="80px" size="small">
+        <el-form label-width="120px" size="small">
           <el-form-item label="题目内容">
             <el-input v-model="q.title" placeholder="请输入题目..." />
           </el-form-item>
-          <el-form-item label="是否必答">
-            <el-switch v-model="q.is_required" />
-          </el-form-item>
+          <div style="display: flex; gap: 20px;">
+            <el-form-item label="是否必答">
+              <el-switch v-model="q.is_required" />
+            </el-form-item>
+            <el-form-item label="是否共享(入库后)" v-if="!q.question_bank_id">
+              <el-switch v-model="q.is_shared" />
+            </el-form-item>
+          </div>
 
           <template v-if="q.type === 'single' || q.type === 'multiple'">
             <el-form-item label="选项设置">
@@ -300,7 +326,7 @@ const loadBankQuestions = async () => {
     const res = await request.get('/api/questions', { 
       params: { is_shared: bankActiveTab.value === 'shared' }
     });
-    bankQuestions.value = res.data;
+    bankQuestions.value = res;
   } catch(e) {
     ElMessage.error("获取题库失败");
   } finally {
@@ -320,6 +346,7 @@ const importQuestion = (q) => {
     type: q.type,
     title: q.title,
     is_required: q.is_required,
+    is_shared: q.is_shared || false,
     options: q.options ? [...q.options] : [],
     constraints: q.constraints ? {...q.constraints} : {},
     jump_logic: []
@@ -327,6 +354,32 @@ const importQuestion = (q) => {
   survey.questions.push(newQ);
   bankDialogVisible.value = false;
   ElMessage.success("导入成功，注意：如果修改将作为新题目版本！");
+};
+
+const unbindQuestion = (q) => {
+  q.question_bank_id = null;
+  ElMessage.info("已解绑，此题目将作为全新题目被记录");
+};
+
+const saveAsNewVersion = async (q) => {
+  try {
+    const res = await request.post(`/api/questions/${q.question_bank_id}/versions`, {
+      type: q.type,
+      title: q.title,
+      is_required: q.is_required,
+      options: q.options,
+      constraints: q.constraints
+    });
+    // Update the local representation with the new ID
+    q.question_bank_id = res.id;
+    ElMessage.success("已保存为题库新版本!");
+  } catch(e) {
+    let msg = e.response?.data?.detail || "保存新版本失败";
+    if (Array.isArray(msg)) {
+      msg = msg.map(err => `${err.loc.join('.')}: ${err.msg}`).join('; ');
+    }
+    ElMessage.error(msg);
+  }
 };
 
 // 响应式的问卷数据树
@@ -355,6 +408,7 @@ const addQuestion = (type) => {
     type: type,
     title: "",
     is_required: true,
+    is_shared: false,
     jump_logic: [], // 初始化跳转逻辑数组
   };
 
@@ -422,7 +476,11 @@ const submitSurvey = async () => {
     ElMessage.success("问卷创建成功！");
     router.push("/dashboard");
   } catch (error) {
-    ElMessage.error(error.response?.data?.detail || "创建失败");
+    let msg = error.response?.data?.detail || "操作失败";
+    if (Array.isArray(msg)) {
+      msg = msg.map(e => `${e.loc.join('.')}: ${e.msg}`).join('; ');
+    }
+    ElMessage.error(msg);
   } finally {
     loading.value = false;
   }

@@ -16,9 +16,14 @@
         <template #header>
           <div class="card-header">
             <span>我的问卷列表</span>
-            <el-button type="primary" @click="goBuilder"
-              >+ 创建新问卷</el-button
-            >
+            <div style="display: flex; gap: 10px;">
+              <el-button type="success" plain @click="router.push('/question-bank')">
+                📚 管理题库中心
+              </el-button>
+              <el-button type="primary" @click="goBuilder">
+                + 创建新问卷
+              </el-button>
+            </div>
           </div>
         </template>
 

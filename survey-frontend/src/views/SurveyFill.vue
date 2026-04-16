@@ -243,8 +243,11 @@ const submitResponse = async () => {
       },
     });
   } catch (error) {
-    // 如果后端校验不通过 (比如多选题选的太少)，把后端的 400 错误抛给用户
-    ElMessage.error(error.response?.data?.detail || "提交失败，请检查填写内容");
+    let msg = error.response?.data?.detail || "提交失败，请检查填写内容";
+    if (Array.isArray(msg)) {
+      msg = msg.map(e => `${e.loc.join('.')}: ${e.msg}`).join('; ');
+    }
+    ElMessage.error(msg);
   } finally {
     submitting.value = false;
   }

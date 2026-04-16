@@ -68,7 +68,7 @@ const loadStats = async () => {
   loading.value = true
   try {
     const res = await request.get(`/api/stats/question/${route.params.id}`)
-    stat.value = res.data
+    stat.value = res
   } catch(e) {
     ElMessage.error("获取全局统计数据失败")
   } finally {

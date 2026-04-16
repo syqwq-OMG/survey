@@ -16,6 +16,7 @@ class Question(BaseModel):
     type: str = Field(..., description="题型：single, multiple, text, number")
     title: str = Field(..., description="题目内容")
     is_required: bool = Field(False, description="是否必填")
+    is_shared: bool = Field(False, description="是否共享")
     options: Optional[List[str]] = Field(
         None, description="选项列表（适用于单选/多选）"
     )
